@@ -1,0 +1,274 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* AI Product Manager Landing Design System */
+
+@layer base {
+  :root {
+    /* Core Brand Colors - HSL Format */
+    --background: 222 84% 5%; /* #0F172A dark slate */
+    --foreground: 210 40% 98%; /* Light text */
+
+    --card: 222 84% 7%; /* Slightly lighter than bg */
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 84% 7%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 262 83% 58%; /* #6B46C1 purple */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 197 71% 73%; /* #06B6D4 cyan accent */
+    --secondary-foreground: 222 84% 5%;
+
+    --muted: 215 28% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 197 71% 73%; /* Cyan accent */
+    --accent-foreground: 222 84% 5%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 28% 17%;
+    --input: 215 28% 17%;
+    --ring: 262 83% 58%;
+
+    --radius: 0.75rem;
+
+    /* Gradient Definitions */
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(262 83% 58%) 0%,
+      hsl(197 71% 73%) 100%
+    );
+    --gradient-card: linear-gradient(
+      135deg,
+      hsl(222 84% 7% / 0.8) 0%,
+      hsl(215 28% 17% / 0.4) 100%
+    );
+    --gradient-border: linear-gradient(
+      135deg,
+      hsl(262 83% 58% / 0.5) 0%,
+      hsl(197 71% 73% / 0.5) 100%
+    );
+
+    /* Glass Effects */
+    --glass-bg: hsl(222 84% 7% / 0.7);
+    --glass-border: hsl(210 40% 98% / 0.1);
+    --glass-shadow: 0 8px 32px hsl(222 84% 5% / 0.3);
+
+    /* Animation Timing */
+    --transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    font-weight: 600;
+  }
+}
+
+@layer components {
+  /* Glass Morphism Components */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+
+  .glass-card {
+    @apply glass rounded-2xl p-6;
+  }
+
+  .glass-button {
+    @apply glass rounded-xl px-6 py-3 font-medium transition-all duration-300;
+    @apply hover:scale-105 hover:shadow-xl;
+  }
+
+  /* Gradient Text */
+  .gradient-text {
+    background: var(--gradient-hero);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Animated Gradients */
+  .animated-gradient {
+    background: var(--gradient-hero);
+    background-size: 200% 200%;
+    animation: gradient-shift 6s ease infinite;
+  }
+
+  /* Glow Effects */
+  .glow-primary {
+    box-shadow: 0 0 30px hsl(262 83% 58% / 0.3);
+  }
+
+  .glow-secondary {
+    box-shadow: 0 0 30px hsl(197 71% 73% / 0.3);
+  }
+
+  /* Interactive Elements */
+  .hover-lift {
+    @apply transition-all duration-300 hover:scale-105 hover:-translate-y-2;
+  }
+
+  .hover-glow {
+    @apply transition-all duration-300 hover:shadow-2xl;
+    @apply hover:shadow-primary/20;
+  }
+
+  /* Particle Background */
+  .particle-bg::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: radial-gradient(
+        circle at 20% 30%,
+        hsl(262 83% 58% / 0.1) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        circle at 80% 70%,
+        hsl(197 71% 73% / 0.1) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        circle at 40% 80%,
+        hsl(262 83% 58% / 0.05) 0%,
+        transparent 50%
+      );
+    pointer-events: none;
+  }
+}
+
+@layer utilities {
+  /* Animation Keyframes */
+  @keyframes gradient-shift {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(40px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes pulse-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 20px hsl(262 83% 58% / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px hsl(262 83% 58% / 0.6);
+    }
+  }
+
+  @keyframes typing {
+    from {
+      width: 0;
+    }
+    to {
+      width: 100%;
+    }
+  }
+
+  /* Animation Classes */
+  .animate-fade-in {
+    animation: fade-in 0.6s ease-out forwards;
+  }
+  .animate-slide-up {
+    animation: slide-up 0.8s ease-out forwards;
+  }
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  .animate-typing {
+    animation: typing 3s steps(40, end);
+  }
+  .animate-gradient {
+    animation: gradient-shift 6s ease infinite;
+  }
+
+  /* Scroll Animations */
+  .scroll-fade {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: var(--transition-slow);
+  }
+
+  .scroll-fade.in-view {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
