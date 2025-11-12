@@ -8,34 +8,47 @@
 
 @layer base {
   :root {
-    /* Core Brand Colors - HSL Format */
-    --background: 222 84% 5%; /* #0F172A dark slate */
-    --foreground: 210 40% 98%; /* Light text */
+    /* ChatGPT-inspired Color Palette - Light Mode */
+    --background: 0 0% 100%; /* Pure white - main chat area */
+    --foreground: 0 0% 15%; /* Very dark gray - primary text */
 
-    --card: 222 84% 7%; /* Slightly lighter than bg */
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 0 0% 15%;
 
-    --popover: 222 84% 7%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
 
-    --primary: 262 83% 58%; /* #6B46C1 purple */
-    --primary-foreground: 210 40% 98%;
+    --primary: 217 91% 60%; /* Blue #2563eb - ChatGPT-like blue */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 197 71% 73%; /* #06B6D4 cyan accent */
-    --secondary-foreground: 222 84% 5%;
+    --secondary: 210 20% 98%; /* Very light gray */
+    --secondary-foreground: 0 0% 15%;
 
-    --muted: 215 28% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 210 20% 96%; /* Light gray for backgrounds */
+    --muted-foreground: 0 0% 45%; /* Medium gray for secondary text */
 
-    --accent: 197 71% 73%; /* Cyan accent */
-    --accent-foreground: 222 84% 5%;
+    --accent: 210 20% 96%;
+    --accent-foreground: 0 0% 15%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 215 28% 17%;
-    --input: 215 28% 17%;
-    --ring: 262 83% 58%;
+    --border: 220 13% 91%; /* Light gray borders #e5e7eb */
+    --input: 220 13% 91%;
+    --ring: 217 91% 60%;
+
+    /* ChatGPT-specific colors */
+    --sidebar-bg: 0 0% 12%; /* Dark gray sidebar #1f1f1f */
+    --sidebar-foreground: 0 0% 85%; /* Light gray text on sidebar */
+    --sidebar-hover: 0 0% 18%; /* Slightly lighter on hover */
+    --sidebar-active: 0 0% 16%; /* Active state */
+    --sidebar-border: 0 0% 20%; /* Sidebar borders */
+
+    --chat-bg: 0 0% 100%; /* White chat area */
+    --chat-message-user: 217 91% 60%; /* Blue for user messages */
+    --chat-message-ai: 210 20% 98%; /* Light gray for AI messages */
+    --chat-text-user: 0 0% 100%; /* White text on user messages */
+    --chat-text-ai: 0 0% 15%; /* Dark text on AI messages */
 
     --radius: 0.75rem;
 
@@ -64,6 +77,50 @@
     /* Animation Timing */
     --transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-slow: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dark {
+    /* ChatGPT-inspired Color Palette - Dark Mode */
+    --background: 0 0% 9%; /* Very dark gray - main chat area */
+    --foreground: 0 0% 90%; /* Light gray text */
+
+    --card: 0 0% 11%; /* Slightly lighter than bg */
+    --card-foreground: 0 0% 90%;
+
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 90%;
+
+    --primary: 217 91% 60%; /* Blue - same as light mode */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 90%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 217 91% 60%;
+
+    /* ChatGPT-specific colors - Dark Mode */
+    --sidebar-bg: 0 0% 12%; /* Dark gray sidebar */
+    --sidebar-foreground: 0 0% 75%; /* Light gray text on sidebar */
+    --sidebar-hover: 0 0% 18%; /* Slightly lighter on hover */
+    --sidebar-active: 0 0% 16%; /* Active state */
+    --sidebar-border: 0 0% 20%; /* Sidebar borders */
+
+    --chat-bg: 0 0% 9%; /* Dark chat area */
+    --chat-message-user: 217 91% 60%; /* Blue for user messages */
+    --chat-message-ai: 0 0% 15%; /* Dark gray for AI messages */
+    --chat-text-user: 0 0% 100%; /* White text on user messages */
+    --chat-text-ai: 0 0% 90%; /* Light text on AI messages */
   }
 }
 
@@ -230,9 +287,22 @@
     }
   }
 
+  @keyframes cursor-blink {
+    0%, 50% {
+      opacity: 1;
+    }
+    51%, 100% {
+      opacity: 0;
+    }
+  }
+
   /* Animation Classes */
   .animate-fade-in {
     animation: fade-in 0.6s ease-out forwards;
+  }
+  
+  .animate-cursor-blink {
+    animation: cursor-blink 1s infinite;
   }
   .animate-slide-up {
     animation: slide-up 0.8s ease-out forwards;
