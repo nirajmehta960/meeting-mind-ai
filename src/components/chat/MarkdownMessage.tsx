@@ -36,7 +36,6 @@ export function MarkdownMessage({
   responseTime,
 }: MarkdownMessageProps) {
   const { theme } = useTheme();
-  const [showActions, setShowActions] = useState(false);
   const [copiedCodeBlock, setCopiedCodeBlock] = useState<string | null>(null);
 
   // Detect content type
@@ -107,11 +106,7 @@ export function MarkdownMessage({
   };
 
   return (
-    <div
-      className="relative"
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
-    >
+    <div className="relative">
       {/* Message Stats */}
       {wordCount > 100 && (
         <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2 px-1">
@@ -129,113 +124,6 @@ export function MarkdownMessage({
               <span>•</span>
               <span>Generated in {responseTime.toFixed(1)}s</span>
             </>
-          )}
-        </div>
-      )}
-
-      {/* Action Buttons - Top Right */}
-      {showActions && !isLoading && (
-        <div className="absolute -top-8 right-0 flex items-center gap-1 bg-card border border-border rounded-lg p-1 shadow-lg z-10">
-          {onCopy && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onCopy}
-                  className="h-7 px-2 text-xs"
-                >
-                  {copied ? (
-                    <>
-                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3 h-3 mr-1" />
-                      Copy
-                    </>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Copy message</TooltipContent>
-            </Tooltip>
-          )}
-
-          {onDownload && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDownload}
-                  className="h-7 px-2 text-xs"
-                >
-                  <Download className="w-3 h-3 mr-1" />
-                  Download
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Download as text file</TooltipContent>
-            </Tooltip>
-          )}
-
-          {hasActionItems && onCopy && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const actionItems = extractActionItems();
-                    navigator.clipboard.writeText(actionItems);
-                    onCopy();
-                  }}
-                  className="h-7 px-2 text-xs"
-                >
-                  <CheckSquare className="w-3 h-3 mr-1" />
-                  Copy Actions
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Copy action items</TooltipContent>
-            </Tooltip>
-          )}
-
-          {hasEmail && onCopy && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const email = extractEmail();
-                    navigator.clipboard.writeText(email);
-                    onCopy();
-                  }}
-                  className="h-7 px-2 text-xs"
-                >
-                  <Mail className="w-3 h-3 mr-1" />
-                  Copy Email
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Copy email content</TooltipContent>
-            </Tooltip>
-          )}
-
-          {isLast && onRegenerate && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onRegenerate}
-                  className="h-7 px-2 text-xs"
-                >
-                  <RefreshCw className="w-3 h-3 mr-1" />
-                  Regenerate
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Regenerate response</TooltipContent>
-            </Tooltip>
           )}
         </div>
       )}
@@ -422,6 +310,113 @@ export function MarkdownMessage({
           <span className="inline-block w-2 h-4 bg-primary ml-1 animate-cursor-blink align-middle" />
         )}
       </div>
+
+      {/* Action Buttons - Bottom */}
+      {!isLoading && (
+        <div className="flex items-center gap-2 mt-3 pt-2 border-t border-border/50">
+          {onCopy && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onCopy}
+                  className="h-7 px-2 text-xs"
+                >
+                  {copied ? (
+                    <>
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3 mr-1" />
+                      Copy
+                    </>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Copy message</TooltipContent>
+            </Tooltip>
+          )}
+
+          {onDownload && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownload}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Download className="w-3 h-3 mr-1" />
+                  Download
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Download as text file</TooltipContent>
+            </Tooltip>
+          )}
+
+          {hasActionItems && onCopy && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const actionItems = extractActionItems();
+                    navigator.clipboard.writeText(actionItems);
+                    onCopy();
+                  }}
+                  className="h-7 px-2 text-xs"
+                >
+                  <CheckSquare className="w-3 h-3 mr-1" />
+                  Copy Actions
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Copy action items</TooltipContent>
+            </Tooltip>
+          )}
+
+          {hasEmail && onCopy && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const email = extractEmail();
+                    navigator.clipboard.writeText(email);
+                    onCopy();
+                  }}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Mail className="w-3 h-3 mr-1" />
+                  Copy Email
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Copy email content</TooltipContent>
+            </Tooltip>
+          )}
+
+          {isLast && onRegenerate && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onRegenerate}
+                  className="h-7 px-2 text-xs"
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Regenerate
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Regenerate response</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+      )}
     </div>
   );
 }
