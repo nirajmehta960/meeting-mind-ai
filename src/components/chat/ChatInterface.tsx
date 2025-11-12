@@ -19,6 +19,7 @@ import {
   Target,
   ChevronDown,
   Square,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AIModel } from "@/types/ai";
@@ -54,7 +55,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  HelpCircle,
   Trash2,
   Search,
   ClipboardList,
@@ -77,6 +77,8 @@ import {
 import { TemplatesModal } from "./TemplatesModal";
 import { sampleTranscript } from "@/data/sampleTranscript";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useNavigate } from "react-router-dom";
+import { MeetingMindLogo } from "@/components/MeetingMindLogo";
 
 export interface ProcessedFile {
   id: string;
@@ -114,12 +116,13 @@ export interface Conversation {
 }
 
 export default function ChatInterface() {
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<
     string | null
   >(null);
   const [message, setMessage] = useState("");
-  const [selectedModel, setSelectedModel] = useState<AIModel>("claude");
+  const [selectedModel, setSelectedModel] = useState<AIModel>("gemini");
   const [isLoading, setIsLoading] = useState(false);
   const [processedFiles, setProcessedFiles] = useState<ProcessedFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -146,7 +149,6 @@ export default function ChatInterface() {
   const [responseTimes, setResponseTimes] = useState<Record<string, number>>(
     {}
   );
-  const [showShortcuts, setShowShortcuts] = useState(false);
   const [showNewChatConfirm, setShowNewChatConfirm] = useState(false);
   const [skipConfirm, setSkipConfirm] = useState(false);
   const [hoveredConversationId, setHoveredConversationId] = useState<
@@ -180,32 +182,13 @@ export default function ChatInterface() {
   // Load conversations from localStorage on mount
   useEffect(() => {
     const loadedConversations = conversationStorage.loadConversations();
-    const activeId = conversationStorage.getActiveConversationId();
 
     if (loadedConversations.length > 0) {
       setConversations(loadedConversations);
-      if (activeId && loadedConversations.find((c) => c.id === activeId)) {
-        setActiveConversationId(activeId);
-        conversationStorage.setActiveConversationId(activeId);
-      } else {
-        const firstId = loadedConversations[0].id;
-        setActiveConversationId(firstId);
-        conversationStorage.setActiveConversationId(firstId);
-      }
-    } else {
-      // Create initial conversation if none exist
-      const initialConv: Conversation = {
-        id: Date.now().toString(),
-        title: "New Chat",
-        messages: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      setConversations([initialConv]);
-      setActiveConversationId(initialConv.id);
-      conversationStorage.saveConversations([initialConv]);
-      conversationStorage.setActiveConversationId(initialConv.id);
+      // Don't set active conversation on load - show landing page instead
+      // User can click on a conversation to open it
     }
+    // If no conversations exist, show landing page (no active conversation)
   }, []);
 
   // Save conversations to localStorage whenever they change (debounced to avoid excessive writes)
@@ -268,15 +251,13 @@ export default function ChatInterface() {
     }
   }, [messages.map((m) => m.content).join(""), isLoading, scrollToBottom]);
 
-  // Auto-resize textarea
+  // Auto-resize textarea (grow upward, max 200px)
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      const maxHeight = 5 * 24; // 5 lines * 24px line height
-      textareaRef.current.style.height = `${Math.min(
-        textareaRef.current.scrollHeight,
-        maxHeight
-      )}px`;
+      const maxHeight = 200; // Max height in pixels (matches max-h-[200px])
+      const newHeight = Math.min(textareaRef.current.scrollHeight, maxHeight);
+      textareaRef.current.style.height = `${newHeight}px`;
     }
   }, [message]);
 
@@ -295,7 +276,6 @@ export default function ChatInterface() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger shortcuts when typing in input
@@ -338,8 +318,6 @@ export default function ChatInterface() {
       if (e.key === "Escape") {
         if (showTemplates) {
           setShowTemplates(false);
-        } else if (showShortcuts) {
-          setShowShortcuts(false);
         } else if (isLoading && abortController) {
           handleStopGeneration();
         }
@@ -348,13 +326,7 @@ export default function ChatInterface() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    processingFiles.size,
-    showTemplates,
-    showShortcuts,
-    isLoading,
-    abortController,
-  ]);
+  }, [processingFiles.size, showTemplates, isLoading, abortController]);
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -396,8 +368,13 @@ export default function ChatInterface() {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    setConversations((prev) => [newConversation, ...prev]);
+    setConversations((prev) => {
+      const updated = [newConversation, ...prev];
+      conversationStorage.saveConversations(updated);
+      return updated;
+    });
     setActiveConversationId(newConversation.id);
+    conversationStorage.setActiveConversationId(newConversation.id);
     setMessage("");
     setProcessedFiles([]);
     setProcessingFiles(new Set());
@@ -426,10 +403,27 @@ export default function ChatInterface() {
       return;
     }
 
-    const conversationId = activeConversationId || conversations[0]?.id;
+    // Create new chat if no active conversation (user is on landing page)
+    let conversationId = activeConversationId;
     if (!conversationId) {
-      handleNewChat();
-      return;
+      // Create new chat and get its ID
+      const newConv: Conversation = {
+        id: Date.now().toString(),
+        title: "New Chat",
+        messages: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      setConversations((prev) => {
+        const updated = [newConv, ...prev];
+        conversationStorage.saveConversations(updated);
+        return updated;
+      });
+
+      conversationId = newConv.id;
+      setActiveConversationId(conversationId);
+      conversationStorage.setActiveConversationId(conversationId);
     }
 
     // Create abort controller for this request
@@ -1267,7 +1261,7 @@ export default function ChatInterface() {
         </aside>
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 relative">
           {/* Header */}
           <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-chat-bg">
             <div className="flex items-center gap-3">
@@ -1300,9 +1294,21 @@ export default function ChatInterface() {
               >
                 <Menu className="w-5 h-5" />
               </Button>
-              <h1 className="text-lg font-semibold text-foreground">
-                MeetingMind
-              </h1>
+              <button
+                onClick={() => {
+                  navigate("/");
+                  // Clear active conversation to show landing page, but don't create new chat
+                  setActiveConversationId(null);
+                  setMessage("");
+                  setProcessedFiles([]);
+                }}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
+                <MeetingMindLogo size="sm" />
+                <h1 className="text-lg font-semibold text-foreground">
+                  MeetingMind
+                </h1>
+              </button>
             </div>
 
             <div className="flex items-center gap-2">
@@ -1391,28 +1397,24 @@ export default function ChatInterface() {
                 </TooltipTrigger>
                 <TooltipContent>Toggle theme</TooltipContent>
               </Tooltip>
-
-              {/* Keyboard Shortcuts Help */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowShortcuts(true)}
-                    aria-label="Keyboard shortcuts"
-                  >
-                    <HelpCircle className="w-5 h-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Keyboard shortcuts</TooltipContent>
-              </Tooltip>
             </div>
           </header>
 
           {/* Messages Area */}
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto bg-chat-bg flex justify-center"
+            className={cn(
+              "flex-1 bg-chat-bg flex flex-col items-center relative",
+              (!activeConversationId || messages.length === 0) && !isLoading
+                ? "overflow-hidden"
+                : "overflow-y-auto"
+            )}
+            style={{
+              minHeight:
+                (!activeConversationId || messages.length === 0) && !isLoading
+                  ? "calc(100vh - 200px)"
+                  : "auto",
+            }}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -1432,95 +1434,105 @@ export default function ChatInterface() {
               </div>
             )}
 
-            {/* Empty State */}
-            {messages.length === 0 && !isLoading && (
-              <div className="w-full max-w-[768px] px-6 py-8 mx-auto animate-fade-in">
-                <div className="text-center mb-10">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
-                    <MessageSquare className="w-8 h-8 text-primary" />
+            {/* Empty State / Landing Page */}
+            {(!activeConversationId || messages.length === 0) && !isLoading && (
+              <div className="flex items-start justify-center pt-8 pb-20 w-full">
+                <div className="w-full max-w-[768px] px-6 mx-auto animate-fade-in">
+                  {/* Title */}
+                  <div className="text-center mb-6">
+                    <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-3">
+                      MeetingMind
+                    </h1>
+                    <p className="text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+                      Transform meeting chaos into actionable insights. Get
+                      instant summaries, extract action items, and generate
+                      stakeholder emails with AI precision.
+                    </p>
                   </div>
-                  <h2 className="text-3xl font-bold text-foreground mb-3">
-                    Transform Your Meetings into Action
-                  </h2>
-                  <p className="text-muted-foreground text-lg">
-                    Upload a transcript or paste meeting notes to get started
-                  </p>
-                </div>
 
-                {/* Quick Action Pills */}
-                <div className="flex flex-wrap justify-center gap-2 mb-8">
-                  {[
-                    {
-                      icon: FileText,
-                      label: "📝 Summarize",
-                      prompt:
-                        "Summarize this meeting transcript with key points, decisions, and action items",
-                    },
-                    {
-                      icon: CheckSquare,
-                      label: "✅ Action Items",
-                      prompt:
-                        "Extract all action items with owners and deadlines in a clear list format",
-                    },
-                    {
-                      icon: Mail,
-                      label: "📧 Email Draft",
-                      prompt:
-                        "Draft a professional email summarizing this meeting for stakeholders",
-                    },
-                    {
-                      icon: Target,
-                      label: "🎯 Decisions",
-                      prompt:
-                        "What were the key decisions made and their context?",
-                    },
-                  ].map((action, index) => {
-                    const Icon = action.icon;
-                    return (
-                      <button
-                        key={index}
-                        onClick={() => handleQuickAction(action.prompt)}
-                        className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-full hover:bg-muted hover:border-primary/50 transition-all duration-200 text-sm font-medium text-foreground shadow-sm hover:shadow-md"
-                      >
-                        <span>{action.label.split(" ")[0]}</span>
-                        <span className="hidden sm:inline">
-                          {action.label.split(" ").slice(1).join(" ")}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                  {/* Core Features - 4 Icons */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    {[
+                      {
+                        icon: FileText,
+                        label: "Smart Summaries",
+                        color: "bg-blue-500",
+                        prompt:
+                          "Summarize this meeting transcript with key points, decisions, and action items",
+                      },
+                      {
+                        icon: CheckSquare,
+                        label: "Action Items",
+                        color: "bg-green-500",
+                        prompt:
+                          "Extract all action items with owners and deadlines in a clear list format",
+                      },
+                      {
+                        icon: Mail,
+                        label: "Email Drafts",
+                        color: "bg-purple-500",
+                        prompt:
+                          "Draft a professional email summarizing this meeting for stakeholders",
+                      },
+                      {
+                        icon: Clock,
+                        label: "Follow-ups",
+                        color: "bg-orange-500",
+                        prompt:
+                          "Create a structured follow-up plan with next steps",
+                      },
+                    ].map((feature, index) => {
+                      const Icon = feature.icon;
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => handleQuickAction(feature.prompt)}
+                          className="flex flex-col items-center gap-1.5 group hover:scale-105 transition-transform"
+                        >
+                          <div
+                            className={`w-14 h-14 ${feature.color} rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow`}
+                          >
+                            <Icon className="w-7 h-7 text-white" />
+                          </div>
+                          <span className="text-xs font-medium text-foreground text-center">
+                            {feature.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                {/* Try with Example Transcript */}
-                <div className="text-center mb-8">
-                  <Button
-                    variant="outline"
-                    onClick={handleLoadSampleTranscript}
-                    className="gap-2"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Try with example transcript
-                  </Button>
-                </div>
+                  {/* Try Section */}
+                  <div className="mb-6">
+                    <h3 className="text-base font-semibold text-foreground mb-3 text-center">
+                      Try:
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {[
+                        "Summarize my meeting transcript",
+                        "Extract action items from discussion",
+                        "Draft stakeholder email",
+                        "Identify key decisions",
+                        "Generate follow-up plan",
+                      ].map((prompt, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleQuickAction(prompt)}
+                          className="text-left px-3 py-2 text-sm bg-muted/50 hover:bg-muted border border-border rounded-lg transition-colors text-foreground"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-                {/* Example Prompts */}
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground mb-3 text-center">
-                    Or try these examples:
-                  </p>
-                  {[
-                    "Summarize my meeting transcript",
-                    "Extract action items from discussion",
-                    "Draft stakeholder email",
-                  ].map((prompt, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleQuickAction(prompt)}
-                      className="block w-full text-left px-4 py-2 text-sm text-muted-foreground hover:bg-card rounded-lg transition-colors"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
+                  {/* CTA Section */}
+                  <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 text-center">
+                    <p className="text-sm text-foreground">
+                      Ready to get started? Ask me anything about your meetings,
+                      or drag & drop files to analyze.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -1589,8 +1601,8 @@ export default function ChatInterface() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
-          <div className="border-t border-border bg-chat-bg flex justify-center px-6 py-4">
+          {/* Input Area - Fixed at bottom */}
+          <div className="border-t border-border bg-chat-bg flex justify-center px-6 pt-4 pb-2 flex-shrink-0 sticky bottom-0 z-10">
             <div className="w-full max-w-[768px]">
               {/* File Preview Cards */}
               {processedFiles.length > 0 && (
@@ -1608,7 +1620,7 @@ export default function ChatInterface() {
 
               {/* Input Container - ChatGPT-style rounded input */}
               <div className="relative bg-card border border-border rounded-[24px] shadow-sm hover:shadow-md transition-all duration-200 focus-within:border-primary/50 focus-within:shadow-lg">
-                <div className="flex items-end gap-2 px-4 py-3">
+                <div className="flex items-end gap-2 px-4 py-3 min-h-[52px]">
                   {/* File Attachment */}
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1629,7 +1641,7 @@ export default function ChatInterface() {
                     <TooltipContent>
                       {processingFiles.size > 0
                         ? "Processing files..."
-                        : "Attach file (Ctrl/Cmd + U)"}
+                        : "Attach file"}
                     </TooltipContent>
                   </Tooltip>
 
@@ -1646,7 +1658,7 @@ export default function ChatInterface() {
                           : "Paste meeting transcript or ask a question..."
                       }
                       disabled={isLoading || processingFiles.size > 0}
-                      className="min-h-[52px] max-h-[200px] resize-none pr-16 text-base border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent placeholder:text-muted-foreground text-foreground py-3 px-4 disabled:opacity-50"
+                      className="min-h-[52px] max-h-[200px] resize-none pr-16 text-base border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent placeholder:text-muted-foreground text-foreground py-3 px-4 disabled:opacity-50 overflow-y-auto"
                       rows={1}
                     />
                     {message.length > 0 && (
@@ -1712,11 +1724,11 @@ export default function ChatInterface() {
                 </div>
               </div>
 
-              {/* Hint */}
-              <div className="flex items-center justify-center gap-2 mt-2">
-                <p className="text-xs text-muted-foreground text-center">
-                  Shift + Enter for new line • Cmd/Ctrl + K to search • Cmd/Ctrl
-                  + U to upload file
+              {/* Disclaimer */}
+              <div className="mt-2 mb-2 text-center">
+                <p className="text-xs text-muted-foreground">
+                  Powered by Claude 4.0 Sonnet and GPT-4o mini. AI can make
+                  mistakes. Always verify important information.
                 </p>
               </div>
 
@@ -1908,43 +1920,6 @@ export default function ChatInterface() {
               >
                 Save
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Keyboard Shortcuts Guide */}
-        <Dialog open={showShortcuts} onOpenChange={setShowShortcuts}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Keyboard Shortcuts</DialogTitle>
-              <DialogDescription>
-                Speed up your workflow with these keyboard shortcuts
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 py-4">
-              {[
-                { keys: "⌘/Ctrl + K", action: "New chat / Focus search" },
-                { keys: "⌘/Ctrl + /", action: "Focus input" },
-                { keys: "⌘/Ctrl + U", action: "Upload file" },
-                { keys: "Enter", action: "Send message" },
-                { keys: "Shift + Enter", action: "New line" },
-                { keys: "Esc", action: "Cancel / Stop generation" },
-              ].map((shortcut, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between py-2 border-b border-border last:border-0"
-                >
-                  <span className="text-sm text-foreground">
-                    {shortcut.action}
-                  </span>
-                  <kbd className="px-2 py-1 text-xs font-semibold text-foreground bg-muted border border-border rounded">
-                    {shortcut.keys}
-                  </kbd>
-                </div>
-              ))}
-            </div>
-            <DialogFooter>
-              <Button onClick={() => setShowShortcuts(false)}>Got it</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
