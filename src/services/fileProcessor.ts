@@ -1,10 +1,12 @@
 import * as pdfjsLib from "pdfjs-dist";
 import mammoth from "mammoth";
 
-// Configure PDF.js worker - use unpkg CDN as fallback
+// Configure PDF.js worker - use local worker file to avoid CORS issues
 if (typeof window !== "undefined") {
-  // Use unpkg CDN for PDF.js worker
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
+  // Use worker file from public directory (served at root by Vite)
+  // In development: /pdf.worker.min.mjs
+  // In production: Vite will copy it to dist and serve it correctly
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 }
 
 export interface FileProcessResult {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -178,7 +178,7 @@ export default function ChatInterface() {
   }, [conversations]);
 
   // Filter conversations based on search query
-  const filteredConversations = React.useMemo(() => {
+  const filteredConversations = useMemo(() => {
     if (!debouncedSearchQuery.trim()) {
       return conversations;
     }
@@ -1095,17 +1095,21 @@ export default function ChatInterface() {
           {/* Header */}
           <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-chat-bg">
             <div className="flex items-center gap-3">
-              {/* Hamburger Menu Button - Toggles sidebar on mobile, visible on desktop */}
+              {/* Hamburger Menu Button - Only toggles on mobile (< 768px) */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => {
-                  setIsSidebarOpen(!isSidebarOpen);
+                  // Only toggle on mobile devices
+                  if (typeof window !== "undefined" && window.innerWidth < 768) {
+                    setIsSidebarOpen(!isSidebarOpen);
+                  }
+                  // On desktop, sidebar is always visible (button does nothing)
                 }}
-                className="hover:bg-muted flex-shrink-0"
-                aria-label="Toggle sidebar"
+                className="hover:bg-muted flex-shrink-0 md:cursor-default"
+                aria-label={typeof window !== "undefined" && window.innerWidth >= 768 ? "Sidebar menu" : "Toggle sidebar"}
                 aria-expanded={isSidebarOpen}
-                title="Toggle sidebar"
+                title={typeof window !== "undefined" && window.innerWidth >= 768 ? "Sidebar (always visible)" : "Toggle sidebar"}
               >
                 <Menu className="w-5 h-5" />
               </Button>
@@ -1323,6 +1327,7 @@ export default function ChatInterface() {
                 selectedModel={selectedModel}
                 isLoading={isLoading && index === messages.length - 1 && msg.role === "assistant"}
                 onStop={isLoading && index === messages.length - 1 && msg.role === "assistant" ? handleStopGeneration : undefined}
+                responseTime={responseTimes[msg.id]}
               />
             ))}
 
@@ -1769,6 +1774,7 @@ interface MessageBubbleProps {
   selectedModel: AIModel;
   isLoading?: boolean;
   onStop?: () => void;
+  responseTime?: number;
 }
 
 function MessageBubble({
@@ -1780,6 +1786,7 @@ function MessageBubble({
   selectedModel,
   isLoading = false,
   onStop,
+  responseTime,
 }: MessageBubbleProps) {
   const [showActions, setShowActions] = useState(false);
 
@@ -1864,7 +1871,7 @@ function MessageBubble({
               isLoading={isLoading}
               isLast={isLast}
               modelName={selectedModel === "claude" ? "Claude 3.5 Sonnet" : "GPT-4o Mini"}
-              responseTime={responseTimes[message.id]}
+              responseTime={responseTime}
             />
           ) : isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">

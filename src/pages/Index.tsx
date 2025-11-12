@@ -1,7 +1,7 @@
-import LandingPage from "@/components/LandingPage";
+import ChatInterface from "@/components/chat/ChatInterface";
 
 const Index = () => {
-  return <LandingPage />;
+  return <ChatInterface />;
 };
 
 export default Index;
