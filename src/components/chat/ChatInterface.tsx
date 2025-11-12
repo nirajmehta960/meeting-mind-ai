@@ -25,10 +25,23 @@ import type { AIModel } from "@/types/ai";
 import { modelOptions } from "@/types/ai";
 import { VoiceInput } from "./VoiceInput";
 import { useTheme } from "next-themes";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { openRouterService, type Message as OpenRouterMessage } from "@/services/openRouterService";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  openRouterService,
+  type Message as OpenRouterMessage,
+} from "@/services/openRouterService";
 import { toast } from "sonner";
-import { fileProcessor, type FileProcessResult, type ProcessingProgress, type FileType } from "@/services/fileProcessor";
+import {
+  fileProcessor,
+  type FileProcessResult,
+  type ProcessingProgress,
+  type FileType,
+} from "@/services/fileProcessor";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, CheckCircle2, AlertCircle, XCircle } from "lucide-react";
 import { MarkdownMessage } from "./MarkdownMessage";
@@ -40,11 +53,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { HelpCircle, Trash2, Search, ClipboardList } from "lucide-react";
+import {
+  HelpCircle,
+  Trash2,
+  Search,
+  ClipboardList,
+  MoreVertical,
+  Pencil,
+} from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { conversationStorage, formatRelativeTime } from "@/utils/conversationStorage";
+import {
+  conversationStorage,
+  formatRelativeTime,
+} from "@/utils/conversationStorage";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { TemplatesModal } from "./TemplatesModal";
 import { sampleTranscript } from "@/data/sampleTranscript";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -67,7 +96,13 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
-  files?: Array<{ name: string; size: number; type: string; content?: string; characterCount?: number }>;
+  files?: Array<{
+    name: string;
+    size: number;
+    type: string;
+    content?: string;
+    characterCount?: number;
+  }>;
 }
 
 export interface Conversation {
@@ -80,20 +115,24 @@ export interface Conversation {
 
 export default function ChatInterface() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
   const [message, setMessage] = useState("");
   const [selectedModel, setSelectedModel] = useState<AIModel>("claude");
   const [isLoading, setIsLoading] = useState(false);
   const [processedFiles, setProcessedFiles] = useState<ProcessedFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
+  const [processingFiles, setProcessingFiles] = useState<Set<string>>(
+    new Set()
+  );
   // Sidebar state: true on desktop (>=768px), false on mobile
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.innerWidth >= 768;
   });
   const [isRecording, setIsRecording] = useState(false);
-  
+
   const { theme, setTheme } = useTheme();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -102,30 +141,47 @@ export default function ChatInterface() {
   const modelDropdownRef = useRef<HTMLDivElement>(null);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-  const [abortController, setAbortController] = useState<AbortController | null>(null);
-  const [responseTimes, setResponseTimes] = useState<Record<string, number>>({});
+  const [abortController, setAbortController] =
+    useState<AbortController | null>(null);
+  const [responseTimes, setResponseTimes] = useState<Record<string, number>>(
+    {}
+  );
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showNewChatConfirm, setShowNewChatConfirm] = useState(false);
   const [skipConfirm, setSkipConfirm] = useState(false);
-  const [hoveredConversationId, setHoveredConversationId] = useState<string | null>(null);
-  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
-  const [lastError, setLastError] = useState<{ message: string; retry: () => void } | null>(null);
+  const [hoveredConversationId, setHoveredConversationId] = useState<
+    string | null
+  >(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [conversationToDelete, setConversationToDelete] = useState<
+    string | null
+  >(null);
+  const [conversationToRename, setConversationToRename] = useState<
+    string | null
+  >(null);
+  const [renameTitle, setRenameTitle] = useState("");
+  const [lastError, setLastError] = useState<{
+    message: string;
+    retry: () => void;
+  } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Debounce search query
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // Get active conversation
-  const activeConversation = conversations.find((c) => c.id === activeConversationId);
+  const activeConversation = conversations.find(
+    (c) => c.id === activeConversationId
+  );
   const messages = activeConversation?.messages || [];
 
   // Load conversations from localStorage on mount
   useEffect(() => {
     const loadedConversations = conversationStorage.loadConversations();
     const activeId = conversationStorage.getActiveConversationId();
-    
+
     if (loadedConversations.length > 0) {
       setConversations(loadedConversations);
       if (activeId && loadedConversations.find((c) => c.id === activeId)) {
@@ -186,9 +242,7 @@ export default function ChatInterface() {
     return conversations.filter(
       (conv) =>
         conv.title.toLowerCase().includes(query) ||
-        conv.messages.some((msg) =>
-          msg.content.toLowerCase().includes(query)
-        )
+        conv.messages.some((msg) => msg.content.toLowerCase().includes(query))
     );
   }, [conversations, debouncedSearchQuery]);
 
@@ -212,7 +266,7 @@ export default function ChatInterface() {
         scrollToBottom();
       }
     }
-  }, [messages.map(m => m.content).join(''), isLoading, scrollToBottom]);
+  }, [messages.map((m) => m.content).join(""), isLoading, scrollToBottom]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -294,8 +348,13 @@ export default function ChatInterface() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [processingFiles.size, showTemplates, showShortcuts, isLoading, abortController]);
-
+  }, [
+    processingFiles.size,
+    showTemplates,
+    showShortcuts,
+    isLoading,
+    abortController,
+  ]);
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -308,7 +367,9 @@ export default function ChatInterface() {
 
   const handleNewChat = () => {
     // Check if current conversation has messages
-    const currentConv = conversations.find(c => c.id === activeConversationId);
+    const currentConv = conversations.find(
+      (c) => c.id === activeConversationId
+    );
     const hasMessages = currentConv && currentConv.messages.length > 0;
 
     // Check if user wants to skip confirmation
@@ -327,7 +388,7 @@ export default function ChatInterface() {
     if (conversations.length > 0) {
       conversationStorage.saveConversations(conversations);
     }
-    
+
     const newConversation: Conversation = {
       id: Date.now().toString(),
       title: "New Chat",
@@ -353,7 +414,9 @@ export default function ChatInterface() {
 
   const handleSendMessage = async () => {
     // Check if we have any content or ready files
-    const readyFiles = processedFiles.filter(f => f.status === "ready" && f.content);
+    const readyFiles = processedFiles.filter(
+      (f) => f.status === "ready" && f.content
+    );
     if (!message.trim() && readyFiles.length === 0) return;
     if (isLoading) return;
 
@@ -374,8 +437,16 @@ export default function ChatInterface() {
     setAbortController(controller);
 
     // Build user content with file contents
-    let userContent = message.trim() || (readyFiles.length > 0 ? "Analyze the attached files" : "");
-    const fileMetadata: Array<{ name: string; size: number; type: string; content?: string; characterCount?: number }> = [];
+    let userContent =
+      message.trim() ||
+      (readyFiles.length > 0 ? "Analyze the attached files" : "");
+    const fileMetadata: Array<{
+      name: string;
+      size: number;
+      type: string;
+      content?: string;
+      characterCount?: number;
+    }> = [];
 
     if (readyFiles.length > 0) {
       try {
@@ -401,7 +472,11 @@ export default function ChatInterface() {
         }
       } catch (error) {
         console.error("Error preparing files:", error);
-        toast.error(`Failed to prepare files: ${error instanceof Error ? error.message : "Unknown error"}`);
+        toast.error(
+          `Failed to prepare files: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
         setAbortController(null);
         return;
       }
@@ -423,12 +498,18 @@ export default function ChatInterface() {
           let newTitle = conv.title;
           if (conv.messages.length === 0 && userMessage.content) {
             // Extract meaningful title from first message
-            const content = userMessage.content.replace(/\[File content\].*\[\/File content\]/gs, "").trim();
+            const content = userMessage.content
+              .replace(/\[File content\].*\[\/File content\]/gs, "")
+              .trim();
             if (content.length > 0) {
               // Take first 50 characters or first sentence
               const firstSentence = content.split(/[.!?]/)[0];
-              newTitle = (firstSentence || content).slice(0, 50).trim() || "New Chat";
-              if (newTitle.length < content.length && !newTitle.endsWith("...")) {
+              newTitle =
+                (firstSentence || content).slice(0, 50).trim() || "New Chat";
+              if (
+                newTitle.length < content.length &&
+                !newTitle.endsWith("...")
+              ) {
                 newTitle += "...";
               }
             } else {
@@ -503,9 +584,7 @@ export default function ChatInterface() {
                 ? {
                     ...conv,
                     messages: conv.messages.map((msg) =>
-                      msg.id === aiMessageId
-                        ? { ...msg, content: chunk }
-                        : msg
+                      msg.id === aiMessageId ? { ...msg, content: chunk } : msg
                     ),
                     updatedAt: new Date(),
                   }
@@ -551,14 +630,21 @@ export default function ChatInterface() {
         // Store error for retry functionality
         const errorMessage = error.message;
         let userMessage = "Something went wrong. Please try again.";
-        
+
         if (errorMessage.includes("API key")) {
-          userMessage = "Invalid API key. Please check your OpenRouter configuration.";
+          userMessage =
+            "Invalid API key. Please check your OpenRouter configuration.";
         } else if (errorMessage.includes("Rate limit")) {
           userMessage = "Rate limit reached. Please try again in a moment.";
-        } else if (errorMessage.includes("timeout") || errorMessage.includes("timed out")) {
+        } else if (
+          errorMessage.includes("timeout") ||
+          errorMessage.includes("timed out")
+        ) {
           userMessage = "Request timed out. Please try again.";
-        } else if (errorMessage.includes("connect") || errorMessage.includes("internet")) {
+        } else if (
+          errorMessage.includes("connect") ||
+          errorMessage.includes("internet")
+        ) {
           userMessage = "Lost connection. Check your internet and try again.";
         } else {
           userMessage = errorMessage || userMessage;
@@ -606,22 +692,25 @@ export default function ChatInterface() {
   ): string => {
     const fileSizeStr = fileProcessor.formatFileSize(fileSize);
     const charCountStr = fileProcessor.formatCharacterCount(characterCount);
-    
+
     // Show warnings for large files
     let warning = "";
     if (characterCount > 100000) {
-      warning = "\n⚠️ Very large transcript. The AI may miss details. Consider splitting into sections.\n";
+      warning =
+        "\n⚠️ Very large transcript. The AI may miss details. Consider splitting into sections.\n";
     } else if (characterCount > 50000) {
       warning = "\n⚠️ Large transcript. Consider summarizing key sections.\n";
     }
-    
+
     return `Attached File: ${fileName} (${fileSizeStr}, ${charCountStr})${warning}\n\n[File content]\n${content}\n[/File content]`;
   };
 
   // Process file asynchronously
   const processFile = async (file: File): Promise<void> => {
     // Generate unique file ID
-    const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${file.name}`;
+    const fileId = `${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(2, 9)}-${file.name}`;
     const fileType = fileProcessor.detectFileType(file);
 
     // Validate file
@@ -659,11 +748,7 @@ export default function ChatInterface() {
     try {
       const result = await fileProcessor.processFile(file, (progress) => {
         setProcessedFiles((prev) =>
-          prev.map((f) =>
-            f.id === fileId
-              ? { ...f, progress }
-              : f
-          )
+          prev.map((f) => (f.id === fileId ? { ...f, progress } : f))
         );
       });
 
@@ -689,7 +774,11 @@ export default function ChatInterface() {
 
         // Show success for large files
         if (result.characterCount && result.characterCount > 50000) {
-          toast.info(`File processed: ${fileProcessor.formatCharacterCount(result.characterCount)}`);
+          toast.info(
+            `File processed: ${fileProcessor.formatCharacterCount(
+              result.characterCount
+            )}`
+          );
         }
 
         setProcessedFiles((prev) =>
@@ -715,12 +804,19 @@ export default function ChatInterface() {
             ? {
                 ...f,
                 status: "error",
-                error: error instanceof Error ? error.message : "Unknown error occurred",
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred",
               }
             : f
         )
       );
-      toast.error(`Failed to process file: ${error instanceof Error ? error.message : "Unknown error"}`);
+      toast.error(
+        `Failed to process file: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     } finally {
       // Remove from processing list
       setProcessingFiles((prev) => {
@@ -809,7 +905,7 @@ export default function ChatInterface() {
 
   const regenerateResponse = async () => {
     if (!activeConversationId || messages.length === 0 || isLoading) return;
-    
+
     // Remove last AI message if it exists
     const lastMessage = messages[messages.length - 1];
     if (lastMessage.role === "assistant") {
@@ -818,13 +914,15 @@ export default function ChatInterface() {
           conv.id === activeConversationId
             ? {
                 ...conv,
-                messages: conv.messages.filter((msg) => msg.id !== lastMessage.id),
+                messages: conv.messages.filter(
+                  (msg) => msg.id !== lastMessage.id
+                ),
                 updatedAt: new Date(),
               }
             : conv
         )
       );
-      
+
       // Resend last user message
       const lastUserMessage = messages[messages.length - 2];
       if (lastUserMessage && lastUserMessage.role === "user") {
@@ -860,12 +958,10 @@ export default function ChatInterface() {
 
         try {
           // Prepare conversation history (excluding the removed AI message)
-          const conversationHistory = messages
-            .slice(0, -1)
-            .map((msg) => ({
-              role: msg.role as "user" | "assistant",
-              content: msg.content,
-            }));
+          const conversationHistory = messages.slice(0, -1).map((msg) => ({
+            role: msg.role as "user" | "assistant",
+            content: msg.content,
+          }));
 
           // Add last user message
           const apiMessages: OpenRouterMessage[] = [
@@ -903,7 +999,10 @@ export default function ChatInterface() {
 
           // Calculate and store response time
           const responseTime = (Date.now() - responseStartTime) / 1000;
-          setResponseTimes((prev) => ({ ...prev, [aiMessageId]: responseTime }));
+          setResponseTimes((prev) => ({
+            ...prev,
+            [aiMessageId]: responseTime,
+          }));
 
           setIsLoading(false);
           setAbortController(null);
@@ -917,7 +1016,9 @@ export default function ChatInterface() {
               conv.id === activeConversationId
                 ? {
                     ...conv,
-                    messages: conv.messages.filter((msg) => msg.id !== aiMessageId),
+                    messages: conv.messages.filter(
+                      (msg) => msg.id !== aiMessageId
+                    ),
                     updatedAt: new Date(),
                   }
                 : conv
@@ -930,15 +1031,27 @@ export default function ChatInterface() {
             }
 
             if (error.message.includes("API key")) {
-              toast.error("Invalid API key. Please check your OpenRouter configuration.");
+              toast.error(
+                "Invalid API key. Please check your OpenRouter configuration."
+              );
             } else if (error.message.includes("Rate limit")) {
               toast.error("Rate limit reached. Please try again in a moment.");
-            } else if (error.message.includes("timeout") || error.message.includes("timed out")) {
+            } else if (
+              error.message.includes("timeout") ||
+              error.message.includes("timed out")
+            ) {
               toast.error("Request timed out. Please try again.");
-            } else if (error.message.includes("connect") || error.message.includes("internet")) {
-              toast.error("Unable to connect. Please check your internet connection.");
+            } else if (
+              error.message.includes("connect") ||
+              error.message.includes("internet")
+            ) {
+              toast.error(
+                "Unable to connect. Please check your internet connection."
+              );
             } else {
-              toast.error(error.message || "Something went wrong. Please try again.");
+              toast.error(
+                error.message || "Something went wrong. Please try again."
+              );
             }
           } else {
             toast.error("Something went wrong. Please try again.");
@@ -951,7 +1064,7 @@ export default function ChatInterface() {
   };
 
   const selectedModelOption = modelOptions.find((m) => m.id === selectedModel);
-  
+
   // Ensure sidebar is open on desktop on mount and resize
   useEffect(() => {
     const ensureDesktopSidebar = () => {
@@ -963,10 +1076,10 @@ export default function ChatInterface() {
         }
       }
     };
-    
+
     // Set initial state
     ensureDesktopSidebar();
-    
+
     // Listen for resize events
     window.addEventListener("resize", ensureDesktopSidebar);
     return () => window.removeEventListener("resize", ensureDesktopSidebar);
@@ -988,13 +1101,11 @@ export default function ChatInterface() {
         {/* Desktop: Always visible (260px, relative). Mobile: Toggleable (fixed when open, hidden when closed) */}
         <aside
           className={cn(
-            "flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 h-full w-[260px]",
+            "flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 h-full w-[320px]",
             // Desktop (md and up): always visible with relative positioning
             "md:relative md:z-auto md:flex",
             // Mobile: fixed positioning when open, hidden when closed
-            isSidebarOpen 
-              ? "fixed z-50 flex" 
-              : "hidden md:flex"
+            isSidebarOpen ? "fixed z-50 flex" : "hidden md:flex"
           )}
           aria-label="Conversation sidebar"
         >
@@ -1040,52 +1151,117 @@ export default function ChatInterface() {
               </div>
             ) : (
               filteredConversations.map((conv) => (
-              <div
-                key={conv.id}
-                className={cn(
-                  "group relative flex items-center gap-2 rounded-lg transition-colors",
-                  activeConversationId === conv.id
-                    ? "bg-sidebar-active"
-                    : "hover:bg-sidebar-hover"
-                )}
-                onMouseEnter={() => setHoveredConversationId(conv.id)}
-                onMouseLeave={() => setHoveredConversationId(null)}
-              >
-                <button
-                  onClick={() => {
-                    setActiveConversationId(conv.id);
-                    // Close sidebar on mobile after selection
-                    if (typeof window !== "undefined" && window.innerWidth < 768) {
-                      setIsSidebarOpen(false);
+                <div
+                  key={conv.id}
+                  className={cn(
+                    "group relative flex items-center gap-2 rounded-lg transition-colors min-w-0",
+                    activeConversationId === conv.id
+                      ? "bg-sidebar-active"
+                      : "hover:bg-sidebar-hover"
+                  )}
+                  onMouseEnter={() => setHoveredConversationId(conv.id)}
+                  onMouseLeave={(e) => {
+                    // Don't hide if dropdown is open or mouse is moving to dropdown menu
+                    if (openDropdownId === conv.id) return;
+                    const relatedTarget = e.relatedTarget as HTMLElement;
+                    if (
+                      !relatedTarget ||
+                      !relatedTarget.closest('[role="menu"]')
+                    ) {
+                      setHoveredConversationId(null);
                     }
                   }}
-                  className={cn(
-                    "flex-1 text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                    activeConversationId === conv.id
-                      ? "text-sidebar-foreground font-medium"
-                      : "text-sidebar-foreground/80"
-                  )}
-                  title={conv.title}
                 >
-                  <div className="truncate font-medium">{conv.title.slice(0, 40)}{conv.title.length > 40 ? "..." : ""}</div>
-                  <div className="text-xs text-sidebar-foreground/60 mt-0.5">
-                    {formatRelativeTime(conv.updatedAt)}
-                  </div>
-                </button>
-                {hoveredConversationId === conv.id && (
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConversationToDelete(conv.id);
+                    onClick={() => {
+                      setActiveConversationId(conv.id);
+                      // Close sidebar on mobile after selection
+                      if (
+                        typeof window !== "undefined" &&
+                        window.innerWidth < 768
+                      ) {
+                        setIsSidebarOpen(false);
+                      }
                     }}
-                    className="flex-shrink-0 p-1.5 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-hover rounded transition-colors mr-1"
-                    title="Delete conversation"
+                    className={cn(
+                      "flex-1 min-w-0 text-left px-3 py-2 rounded-lg text-sm transition-colors",
+                      activeConversationId === conv.id
+                        ? "text-sidebar-foreground font-medium"
+                        : "text-sidebar-foreground/80"
+                    )}
+                    title={conv.title}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <div className="truncate font-medium">{conv.title}</div>
+                    <div className="text-xs text-sidebar-foreground/60 mt-0.5 truncate">
+                      {formatRelativeTime(conv.updatedAt)}
+                    </div>
                   </button>
-                )}
-              </div>
-            ))
+                  <div className="flex-shrink-0">
+                    {(hoveredConversationId === conv.id ||
+                      openDropdownId === conv.id) && (
+                      <DropdownMenu
+                        open={openDropdownId === conv.id}
+                        onOpenChange={(open) => {
+                          if (open) {
+                            setOpenDropdownId(conv.id);
+                          } else {
+                            setOpenDropdownId(null);
+                            // Small delay to allow menu item clicks to register
+                            setTimeout(() => {
+                              if (hoveredConversationId === conv.id) {
+                                setHoveredConversationId(null);
+                              }
+                            }, 100);
+                          }
+                        }}
+                      >
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                            }}
+                            className="p-1.5 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-hover rounded transition-colors"
+                            title="More options"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-40"
+                          onCloseAutoFocus={(e) => e.preventDefault()}
+                        >
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConversationToRename(conv.id);
+                              setRenameTitle(conv.title);
+                              setOpenDropdownId(null);
+                            }}
+                          >
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConversationToDelete(conv.id);
+                              setOpenDropdownId(null);
+                            }}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </aside>
@@ -1101,15 +1277,26 @@ export default function ChatInterface() {
                 size="icon"
                 onClick={() => {
                   // Only toggle on mobile devices
-                  if (typeof window !== "undefined" && window.innerWidth < 768) {
+                  if (
+                    typeof window !== "undefined" &&
+                    window.innerWidth < 768
+                  ) {
                     setIsSidebarOpen(!isSidebarOpen);
                   }
                   // On desktop, sidebar is always visible (button does nothing)
                 }}
                 className="hover:bg-muted flex-shrink-0 md:cursor-default"
-                aria-label={typeof window !== "undefined" && window.innerWidth >= 768 ? "Sidebar menu" : "Toggle sidebar"}
+                aria-label={
+                  typeof window !== "undefined" && window.innerWidth >= 768
+                    ? "Sidebar menu"
+                    : "Toggle sidebar"
+                }
                 aria-expanded={isSidebarOpen}
-                title={typeof window !== "undefined" && window.innerWidth >= 768 ? "Sidebar (always visible)" : "Toggle sidebar"}
+                title={
+                  typeof window !== "undefined" && window.innerWidth >= 768
+                    ? "Sidebar (always visible)"
+                    : "Toggle sidebar"
+                }
               >
                 <Menu className="w-5 h-5" />
               </Button>
@@ -1138,7 +1325,9 @@ export default function ChatInterface() {
                           target.style.display = "none";
                         }}
                       />
-                      <span className="hidden sm:inline">{selectedModelOption.name}</span>
+                      <span className="hidden sm:inline">
+                        {selectedModelOption.name}
+                      </span>
                       <ChevronDown className="w-4 h-4" />
                     </>
                   )}
@@ -1223,7 +1412,7 @@ export default function ChatInterface() {
           {/* Messages Area */}
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto px-4 py-6 space-y-6 bg-chat-bg"
+            className="flex-1 overflow-y-auto bg-chat-bg flex justify-center"
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -1245,7 +1434,7 @@ export default function ChatInterface() {
 
             {/* Empty State */}
             {messages.length === 0 && !isLoading && (
-              <div className="max-w-3xl mx-auto mt-12 animate-fade-in">
+              <div className="w-full max-w-[768px] px-6 py-8 mx-auto animate-fade-in">
                 <div className="text-center mb-10">
                   <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
                     <MessageSquare className="w-8 h-8 text-primary" />
@@ -1261,10 +1450,30 @@ export default function ChatInterface() {
                 {/* Quick Action Pills */}
                 <div className="flex flex-wrap justify-center gap-2 mb-8">
                   {[
-                    { icon: FileText, label: "📝 Summarize", prompt: "Summarize this meeting transcript with key points, decisions, and action items" },
-                    { icon: CheckSquare, label: "✅ Action Items", prompt: "Extract all action items with owners and deadlines in a clear list format" },
-                    { icon: Mail, label: "📧 Email Draft", prompt: "Draft a professional email summarizing this meeting for stakeholders" },
-                    { icon: Target, label: "🎯 Decisions", prompt: "What were the key decisions made and their context?" },
+                    {
+                      icon: FileText,
+                      label: "📝 Summarize",
+                      prompt:
+                        "Summarize this meeting transcript with key points, decisions, and action items",
+                    },
+                    {
+                      icon: CheckSquare,
+                      label: "✅ Action Items",
+                      prompt:
+                        "Extract all action items with owners and deadlines in a clear list format",
+                    },
+                    {
+                      icon: Mail,
+                      label: "📧 Email Draft",
+                      prompt:
+                        "Draft a professional email summarizing this meeting for stakeholders",
+                    },
+                    {
+                      icon: Target,
+                      label: "🎯 Decisions",
+                      prompt:
+                        "What were the key decisions made and their context?",
+                    },
                   ].map((action, index) => {
                     const Icon = action.icon;
                     return (
@@ -1274,7 +1483,9 @@ export default function ChatInterface() {
                         className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-full hover:bg-muted hover:border-primary/50 transition-all duration-200 text-sm font-medium text-foreground shadow-sm hover:shadow-md"
                       >
                         <span>{action.label.split(" ")[0]}</span>
-                        <span className="hidden sm:inline">{action.label.split(" ").slice(1).join(" ")}</span>
+                        <span className="hidden sm:inline">
+                          {action.label.split(" ").slice(1).join(" ")}
+                        </span>
                       </button>
                     );
                   })}
@@ -1291,7 +1502,6 @@ export default function ChatInterface() {
                     Try with example transcript
                   </Button>
                 </div>
-
 
                 {/* Example Prompts */}
                 <div className="space-y-2">
@@ -1316,52 +1526,72 @@ export default function ChatInterface() {
             )}
 
             {/* Messages */}
-            {messages.map((msg, index) => (
-              <MessageBubble
-                key={msg.id}
-                message={msg}
-                isLast={index === messages.length - 1}
-                onCopy={() => copyToClipboard(msg.content, msg.id)}
-                onRegenerate={regenerateResponse}
-                copied={copiedMessageId === msg.id}
-                selectedModel={selectedModel}
-                isLoading={isLoading && index === messages.length - 1 && msg.role === "assistant"}
-                onStop={isLoading && index === messages.length - 1 && msg.role === "assistant" ? handleStopGeneration : undefined}
-                responseTime={responseTimes[msg.id]}
-              />
-            ))}
+            <div className="w-full max-w-[768px] px-6 py-8">
+              {messages.map((msg, index) => (
+                <div key={msg.id} className="mb-6 last:mb-0">
+                  <MessageBubble
+                    message={msg}
+                    isLast={index === messages.length - 1}
+                    onCopy={() => copyToClipboard(msg.content, msg.id)}
+                    onRegenerate={regenerateResponse}
+                    copied={copiedMessageId === msg.id}
+                    selectedModel={selectedModel}
+                    isLoading={
+                      isLoading &&
+                      index === messages.length - 1 &&
+                      msg.role === "assistant"
+                    }
+                    onStop={
+                      isLoading &&
+                      index === messages.length - 1 &&
+                      msg.role === "assistant"
+                        ? handleStopGeneration
+                        : undefined
+                    }
+                    responseTime={responseTimes[msg.id]}
+                  />
+                </div>
+              ))}
+            </div>
 
             {/* Error State with Retry */}
             {lastError && messages.length > 0 && !isLoading && (
-              <div className="max-w-3xl mx-auto mt-4 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg animate-fade-in" role="alert">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-red-900 dark:text-red-200 mb-3">
-                      {lastError.message}
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={lastError.retry}
-                      className="bg-white dark:bg-card hover:bg-red-50 dark:hover:bg-red-950/30 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300"
-                      aria-label="Retry sending message"
-                    >
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Retry
-                    </Button>
+              <div className="w-full max-w-[768px] px-6 py-8 mx-auto">
+                <div
+                  className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg animate-fade-in"
+                  role="alert"
+                >
+                  <div className="flex items-start gap-3">
+                    <AlertCircle
+                      className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5"
+                      aria-hidden="true"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-red-900 dark:text-red-200 mb-3">
+                        {lastError.message}
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={lastError.retry}
+                        className="bg-white dark:bg-card hover:bg-red-50 dark:hover:bg-red-950/30 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300"
+                        aria-label="Retry sending message"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Retry
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-
             <div ref={messagesEndRef} />
           </div>
 
           {/* Input Area */}
-          <div className="border-t border-border bg-chat-bg p-4">
-            <div className="max-w-3xl mx-auto">
+          <div className="border-t border-border bg-chat-bg flex justify-center px-6 py-4">
+            <div className="w-full max-w-[768px]">
               {/* File Preview Cards */}
               {processedFiles.length > 0 && (
                 <div className="mb-3 space-y-2">
@@ -1377,8 +1607,8 @@ export default function ChatInterface() {
               )}
 
               {/* Input Container - ChatGPT-style rounded input */}
-              <div className="relative bg-card border border-border rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 focus-within:border-primary/50 focus-within:shadow-lg">
-                <div className="flex items-end gap-2 px-3 py-2.5">
+              <div className="relative bg-card border border-border rounded-[24px] shadow-sm hover:shadow-md transition-all duration-200 focus-within:border-primary/50 focus-within:shadow-lg">
+                <div className="flex items-end gap-2 px-4 py-3">
                   {/* File Attachment */}
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1410,9 +1640,13 @@ export default function ChatInterface() {
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       onKeyDown={handleKeyPress}
-                      placeholder={processingFiles.size > 0 ? "Processing files..." : "Paste meeting transcript or ask a question..."}
+                      placeholder={
+                        processingFiles.size > 0
+                          ? "Processing files..."
+                          : "Paste meeting transcript or ask a question..."
+                      }
                       disabled={isLoading || processingFiles.size > 0}
-                      className="min-h-[44px] max-h-[120px] resize-none pr-16 text-base border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent placeholder:text-muted-foreground text-foreground py-2 disabled:opacity-50"
+                      className="min-h-[52px] max-h-[200px] resize-none pr-16 text-base border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent placeholder:text-muted-foreground text-foreground py-3 px-4 disabled:opacity-50"
                       rows={1}
                     />
                     {message.length > 0 && (
@@ -1459,7 +1693,13 @@ export default function ChatInterface() {
                       <TooltipTrigger asChild>
                         <Button
                           onClick={handleSendMessage}
-                          disabled={(!message.trim() && processedFiles.filter(f => f.status === "ready").length === 0) || isLoading || processingFiles.size > 0}
+                          disabled={
+                            (!message.trim() &&
+                              processedFiles.filter((f) => f.status === "ready")
+                                .length === 0) ||
+                            isLoading ||
+                            processingFiles.size > 0
+                          }
                           className="flex-shrink-0 h-8 w-8 bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed rounded-lg p-0"
                           size="icon"
                         >
@@ -1475,7 +1715,8 @@ export default function ChatInterface() {
               {/* Hint */}
               <div className="flex items-center justify-center gap-2 mt-2">
                 <p className="text-xs text-muted-foreground text-center">
-                  Shift + Enter for new line • Cmd/Ctrl + K to search • Cmd/Ctrl + U to upload file
+                  Shift + Enter for new line • Cmd/Ctrl + K to search • Cmd/Ctrl
+                  + U to upload file
                 </p>
               </div>
 
@@ -1498,7 +1739,8 @@ export default function ChatInterface() {
             <DialogHeader>
               <DialogTitle>Start a new chat?</DialogTitle>
               <DialogDescription>
-                Current conversation will be cleared. This action cannot be undone.
+                Current conversation will be cleared. This action cannot be
+                undone.
               </DialogDescription>
             </DialogHeader>
             <div className="flex items-center space-x-2 py-4">
@@ -1514,12 +1756,18 @@ export default function ChatInterface() {
                   }
                 }}
               />
-              <Label htmlFor="skip-confirm" className="text-sm font-normal cursor-pointer">
+              <Label
+                htmlFor="skip-confirm"
+                className="text-sm font-normal cursor-pointer"
+              >
                 Don't ask again
               </Label>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowNewChatConfirm(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowNewChatConfirm(false)}
+              >
                 Cancel
               </Button>
               <Button
@@ -1535,16 +1783,23 @@ export default function ChatInterface() {
         </Dialog>
 
         {/* Delete Conversation Confirmation */}
-        <Dialog open={conversationToDelete !== null} onOpenChange={(open) => !open && setConversationToDelete(null)}>
+        <Dialog
+          open={conversationToDelete !== null}
+          onOpenChange={(open) => !open && setConversationToDelete(null)}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Delete this conversation?</DialogTitle>
               <DialogDescription>
-                This action cannot be undone. All messages in this conversation will be permanently deleted.
+                This action cannot be undone. All messages in this conversation
+                will be permanently deleted.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setConversationToDelete(null)}>
+              <Button
+                variant="outline"
+                onClick={() => setConversationToDelete(null)}
+              >
                 Cancel
               </Button>
               <Button
@@ -1552,17 +1807,23 @@ export default function ChatInterface() {
                 onClick={() => {
                   if (conversationToDelete) {
                     setConversations((prev) => {
-                      const filtered = prev.filter((c) => c.id !== conversationToDelete);
+                      const filtered = prev.filter(
+                        (c) => c.id !== conversationToDelete
+                      );
                       // Save to localStorage
                       conversationStorage.saveConversations(filtered);
                       return filtered;
                     });
-                    
+
                     if (activeConversationId === conversationToDelete) {
-                      const remaining = conversations.filter((c) => c.id !== conversationToDelete);
+                      const remaining = conversations.filter(
+                        (c) => c.id !== conversationToDelete
+                      );
                       if (remaining.length > 0) {
                         setActiveConversationId(remaining[0].id);
-                        conversationStorage.setActiveConversationId(remaining[0].id);
+                        conversationStorage.setActiveConversationId(
+                          remaining[0].id
+                        );
                       } else {
                         createNewChat();
                       }
@@ -1572,6 +1833,80 @@ export default function ChatInterface() {
                 }}
               >
                 Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Rename Conversation Dialog */}
+        <Dialog
+          open={conversationToRename !== null}
+          onOpenChange={(open) => !open && setConversationToRename(null)}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Rename conversation</DialogTitle>
+              <DialogDescription>
+                Enter a new name for this conversation.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Input
+                value={renameTitle}
+                onChange={(e) => setRenameTitle(e.target.value)}
+                placeholder="Conversation name"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    if (conversationToRename && renameTitle.trim()) {
+                      setConversations((prev) => {
+                        const updated = prev.map((c) =>
+                          c.id === conversationToRename
+                            ? { ...c, title: renameTitle.trim() }
+                            : c
+                        );
+                        conversationStorage.saveConversations(updated);
+                        return updated;
+                      });
+                      setConversationToRename(null);
+                      setRenameTitle("");
+                    }
+                  } else if (e.key === "Escape") {
+                    setConversationToRename(null);
+                    setRenameTitle("");
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setConversationToRename(null);
+                  setRenameTitle("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (conversationToRename && renameTitle.trim()) {
+                    setConversations((prev) => {
+                      const updated = prev.map((c) =>
+                        c.id === conversationToRename
+                          ? { ...c, title: renameTitle.trim() }
+                          : c
+                      );
+                      conversationStorage.saveConversations(updated);
+                      return updated;
+                    });
+                    setConversationToRename(null);
+                    setRenameTitle("");
+                  }
+                }}
+                disabled={!renameTitle.trim()}
+              >
+                Save
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1595,8 +1930,13 @@ export default function ChatInterface() {
                 { keys: "Shift + Enter", action: "New line" },
                 { keys: "Esc", action: "Cancel / Stop generation" },
               ].map((shortcut, index) => (
-                <div key={index} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <span className="text-sm text-foreground">{shortcut.action}</span>
+                <div
+                  key={index}
+                  className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                >
+                  <span className="text-sm text-foreground">
+                    {shortcut.action}
+                  </span>
                   <kbd className="px-2 py-1 text-xs font-semibold text-foreground bg-muted border border-border rounded">
                     {shortcut.keys}
                   </kbd>
@@ -1632,8 +1972,22 @@ interface FilePreviewCardProps {
   disabled?: boolean;
 }
 
-function FilePreviewCard({ processedFile, onRemove, disabled }: FilePreviewCardProps) {
-  const { file, fileType, status, content, characterCount, pageCount, error, warning, progress } = processedFile;
+function FilePreviewCard({
+  processedFile,
+  onRemove,
+  disabled,
+}: FilePreviewCardProps) {
+  const {
+    file,
+    fileType,
+    status,
+    content,
+    characterCount,
+    pageCount,
+    error,
+    warning,
+    progress,
+  } = processedFile;
   const fileSize = fileProcessor.formatFileSize(file.size);
   const fileTypeColor = fileProcessor.getFileTypeColor(fileType);
   const FileIcon = FileText;
@@ -1659,7 +2013,8 @@ function FilePreviewCard({ processedFile, onRemove, disabled }: FilePreviewCardP
         return progress?.status || "Processing...";
       case "ready":
         if (characterCount) {
-          const charCountStr = fileProcessor.formatCharacterCount(characterCount);
+          const charCountStr =
+            fileProcessor.formatCharacterCount(characterCount);
           return `✓ Ready - ${charCountStr}`;
         }
         return "✓ Ready";
@@ -1682,7 +2037,8 @@ function FilePreviewCard({ processedFile, onRemove, disabled }: FilePreviewCardP
       className={cn(
         "relative bg-card border rounded-lg p-3 shadow-sm transition-all",
         status === "error" && "border-red-200 bg-red-50/50 dark:bg-red-950/20",
-        status === "ready" && "border-green-200 bg-green-50/50 dark:bg-green-950/20",
+        status === "ready" &&
+          "border-green-200 bg-green-50/50 dark:bg-green-950/20",
         status === "processing" && "border-primary/50"
       )}
     >
@@ -1723,7 +2079,10 @@ function FilePreviewCard({ processedFile, onRemove, disabled }: FilePreviewCardP
                 status === "processing" && "text-primary",
                 status === "ready" && "text-green-600",
                 status === "error" && "text-red-600",
-                status !== "processing" && status !== "ready" && status !== "error" && "text-muted-foreground"
+                status !== "processing" &&
+                  status !== "ready" &&
+                  status !== "error" &&
+                  "text-muted-foreground"
               )}
             >
               {getStatusText()}
@@ -1792,18 +2151,40 @@ function MessageBubble({
 
   if (message.role === "user") {
     return (
-      <div className="flex items-start justify-end gap-4 max-w-3xl ml-auto animate-fade-in" role="article" aria-label="User message">
-        <div className="flex flex-col items-end gap-2 flex-1">
+      <div
+        className="flex items-start justify-end gap-4 w-full animate-fade-in"
+        role="article"
+        aria-label="User message"
+      >
+        {/* Avatar */}
+        <div
+          className="w-8 h-8 rounded-full bg-chat-message-user flex items-center justify-center flex-shrink-0"
+          aria-label="User avatar"
+        >
+          <span
+            className="text-chat-text-user text-sm font-semibold"
+            aria-hidden="true"
+          >
+            U
+          </span>
+        </div>
+
+        <div className="flex flex-col items-end gap-2 flex-1 min-w-0">
           {/* Files */}
           {message.files && message.files.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-2">
+            <div className="flex flex-wrap gap-2 mb-2 justify-end">
               {message.files.map((file, index) => (
                 <div
                   key={index}
                   className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-lg text-sm border border-primary/20"
-                  title={`${file.name} (${fileProcessor.formatFileSize(file.size)})`}
+                  title={`${file.name} (${fileProcessor.formatFileSize(
+                    file.size
+                  )})`}
                 >
-                  <FileText className="w-4 h-4 text-primary" aria-hidden="true" />
+                  <FileText
+                    className="w-4 h-4 text-primary"
+                    aria-hidden="true"
+                  />
                   <span className="text-foreground">{file.name}</span>
                 </div>
               ))}
@@ -1812,40 +2193,50 @@ function MessageBubble({
 
           {/* Message - ChatGPT-style blue */}
           <div
-            className="bg-chat-message-user text-chat-text-user rounded-2xl rounded-tr-md px-4 py-3 shadow-sm max-w-[85%] transition-shadow hover:shadow-md"
+            className="bg-chat-message-user text-chat-text-user rounded-[18px] px-4 py-3 shadow-sm max-w-[80%] transition-shadow hover:shadow-md"
             onMouseEnter={() => setShowActions(true)}
             onMouseLeave={() => setShowActions(false)}
           >
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              {message.content}
+            </p>
           </div>
 
           {/* Timestamp */}
-          <span className="text-xs text-muted-foreground" aria-label={`Sent at ${message.timestamp.toLocaleTimeString()}`}>
+          <span
+            className="text-xs text-muted-foreground"
+            aria-label={`Sent at ${message.timestamp.toLocaleTimeString()}`}
+          >
             {message.timestamp.toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
             })}
           </span>
         </div>
-
-        {/* Avatar */}
-        <div className="w-8 h-8 rounded-full bg-chat-message-user flex items-center justify-center flex-shrink-0" aria-label="User avatar">
-          <span className="text-chat-text-user text-sm font-semibold" aria-hidden="true">U</span>
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex items-start gap-4 max-w-3xl animate-fade-in" role="article" aria-label="AI assistant message">
+    <div
+      className="flex items-start gap-3 w-full animate-fade-in"
+      role="article"
+      aria-label="AI assistant message"
+    >
       {/* Avatar */}
-      <div className="w-8 h-8 rounded-full bg-chat-message-ai flex items-center justify-center flex-shrink-0" aria-label="AI assistant avatar">
-        <MessageSquare className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+      <div
+        className="w-8 h-8 rounded-full bg-chat-message-ai flex items-center justify-center flex-shrink-0"
+        aria-label="AI assistant avatar"
+      >
+        <MessageSquare
+          className="w-4 h-4 text-muted-foreground"
+          aria-hidden="true"
+        />
       </div>
 
-      <div className="flex-1">
+      <div className="flex-1 min-w-0 -ml-12">
         <div
-          className="bg-chat-message-ai rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border border-border"
+          className="bg-chat-message-ai rounded-[18px] px-5 py-4 shadow-sm border border-border w-full"
           onMouseEnter={() => !isLoading && setShowActions(true)}
           onMouseLeave={() => !isLoading && setShowActions(false)}
         >
@@ -1854,8 +2245,12 @@ function MessageBubble({
               content={message.content}
               onCopy={onCopy}
               onDownload={() => {
-                const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-                const blob = new Blob([message.content], { type: "text/plain" });
+                const timestamp = new Date()
+                  .toISOString()
+                  .replace(/[:.]/g, "-");
+                const blob = new Blob([message.content], {
+                  type: "text/plain",
+                });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
@@ -1870,81 +2265,22 @@ function MessageBubble({
               copied={copied}
               isLoading={isLoading}
               isLast={isLast}
-              modelName={selectedModel === "claude" ? "Claude 3.5 Sonnet" : "GPT-4o Mini"}
+              modelName={
+                selectedModel === "claude" ? "Claude 3.5 Sonnet" : "GPT-4o Mini"
+              }
               responseTime={responseTime}
             />
           ) : isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <LoadingDots />
               <span>
-                {selectedModel === "claude" ? "Claude is analyzing..." : "GPT is processing..."}
+                {selectedModel === "claude"
+                  ? "Claude is analyzing..."
+                  : "GPT is processing..."}
               </span>
             </div>
           ) : null}
         </div>
-
-        {/* Actions */}
-        {isLoading && onStop ? (
-          <div className="flex items-center gap-2 mt-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onStop}
-                  className="h-7 text-xs hover:bg-muted"
-                >
-                  <Square className="w-3 h-3 mr-1" />
-                  Stop generating
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Stop generating</TooltipContent>
-            </Tooltip>
-          </div>
-        ) : showActions && !isLoading ? (
-          <div className="flex items-center gap-2 mt-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onCopy}
-                  className="h-7 text-xs hover:bg-muted"
-                >
-                  {copied ? (
-                    <>
-                      <CheckSquare className="w-3 h-3 mr-1" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3 h-3 mr-1" />
-                      Copy
-                    </>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Copy message</TooltipContent>
-            </Tooltip>
-
-            {isLast && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onRegenerate}
-                    className="h-7 text-xs hover:bg-muted"
-                  >
-                    <RefreshCw className="w-3 h-3 mr-1" />
-                    Regenerate
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Regenerate response</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        ) : null}
 
         {/* Timestamp */}
         {!isLoading && (
@@ -1964,10 +2300,18 @@ function MessageBubble({
 function LoadingDots() {
   return (
     <div className="flex gap-1" aria-label="Loading" role="status">
-      <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.3s]" aria-hidden="true"></div>
-      <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.15s]" aria-hidden="true"></div>
-      <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" aria-hidden="true"></div>
+      <div
+        className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.3s]"
+        aria-hidden="true"
+      ></div>
+      <div
+        className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.15s]"
+        aria-hidden="true"
+      ></div>
+      <div
+        className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
+        aria-hidden="true"
+      ></div>
     </div>
   );
 }
-
