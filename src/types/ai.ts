@@ -11,15 +11,15 @@ export interface ModelOption {
 export const modelOptions: ModelOption[] = [
   {
     id: "claude",
-    name: "Claude 4.0 Sonnet",
-    fullName: "Claude 4.0 Sonnet",
+    name: "Claude 3.5 Sonnet",
+    fullName: "Claude 3.5 Sonnet",
     icon: "/claude-color.svg",
     color: "#FF7A00",
   },
   {
     id: "gemini",
-    name: "Gemini 2.5 Flash",
-    fullName: "Gemini 2.5 Flash",
+    name: "GPT-4o Mini",
+    fullName: "GPT-4o Mini",
     icon: "/gemini-color.svg",
     color: "#4285F4",
   },
