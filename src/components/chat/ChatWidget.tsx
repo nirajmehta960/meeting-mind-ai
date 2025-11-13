@@ -17,12 +17,10 @@ import {
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
 import { QuickActions } from "./QuickActions";
-import Header from "@/components/Header";
 import { meetingAIService } from "@/utils/aiService";
 import { StreamingMessage } from "./StreamingMessage";
 import type { AIModel } from "@/types/ai";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
 
 export interface Message {
   id: string;
@@ -279,8 +277,6 @@ export default function ChatWidget({
   if (useMeetingChat) {
     return (
       <div className="h-screen flex flex-col bg-white text-gray-900 overflow-hidden">
-        {/* Header */}
-        <Header />
 
         {/* Welcome Screen - Fixed height, no scroll */}
         <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">

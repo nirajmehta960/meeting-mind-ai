@@ -282,11 +282,11 @@ export function ChatInput({
                           <img
                             src={
                               selectedModel === "claude"
-                                ? "/claude-color.svg"
-                                : "/gemini-color.svg"
+                                ? "/images/claude-logo.jpg"
+                                : "/images/chatgpt-logo.jpg"
                             }
                             alt={
-                              selectedModel === "claude" ? "Claude" : "Gemini"
+                              selectedModel === "claude" ? "Claude" : "GPT"
                             }
                             className="w-4 h-4"
                             onError={(e) => {
